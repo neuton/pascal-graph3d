@@ -1,0 +1,93 @@
+unit primitiv;
+
+
+interface
+
+uses graph3d, vectors;
+
+procedure make_pyramid(var o: tobject; s: single; x, y, z: single);
+procedure make_cube(var o: tobject; s: single; x, y, z: single);
+procedure make_cone(var o: tobject; h, r: single; c: integer; x, y, z: single);
+
+
+implementation
+
+procedure make_pyramid(var o: tobject; s: single; x, y, z: single);
+var
+  a, b, c, d: integer;
+  t: array [1..4] of integer;
+begin
+  for a:=1 to 4 do
+    t[a]:=a+trianglescount;
+  a:=verticescount+1; b:=a+1; c:=b+1; d:=c+1;
+  with o do
+  begin
+    setvector(vertex[a], x, y, z);
+    setvector(vertex[b], x+s, y, z);
+    setvector(vertex[c], x, y+s, z);
+    setvector(vertex[d], x, y, z+s);
+    setvector(center, x, y, z);
+    triangle[t[1]][1]:=a; triangle[t[1]][2]:=b; triangle[t[1]][3]:=c;
+    triangle[t[2]][1]:=a; triangle[t[2]][2]:=c; triangle[t[2]][3]:=d;
+    triangle[t[3]][1]:=a; triangle[t[3]][2]:=d; triangle[t[3]][3]:=b;
+    triangle[t[4]][1]:=b; triangle[t[4]][2]:=d; triangle[t[4]][3]:=c;
+    for a:=1 to 4 do
+      triangle[t[a]][4]:=random(7)+8;
+    firstvertex:=verticescount+1;
+    firsttriangle:=trianglescount+1;
+    verticescount:=verticescount+4;
+    trianglescount:=trianglescount+4;
+    lastvertex:=verticescount;
+    lasttriangle:=trianglescount;
+        end;
+end;
+
+procedure make_cube(var o: tobject; s: single; x, y, z: single);
+var
+  a, b, c, d, e, f, g, h: integer;
+  t: array [1..12] of integer;
+begin
+  s:=s/2;
+  for a:=1 to 12 do
+    t[a]:=a+trianglescount;
+  a:=verticescount+1; b:=a+1; c:=b+1; d:=c+1; e:=d+1; f:=e+1; g:=f+1; h:=g+1;
+  with o do
+  begin
+    setvector(vertex[a], x+s, y+s, z-s);
+    setvector(vertex[b], x+s, y+s, z+s);
+    setvector(vertex[c], x-s, y+s, z+s);
+    setvector(vertex[d], x-s, y+s, z-s);
+    setvector(vertex[e], x+s, y-s, z-s);
+    setvector(vertex[f], x+s, y-s, z+s);
+    setvector(vertex[g], x-s, y-s, z+s);
+    setvector(vertex[h], x-s, y-s, z-s);
+    setvector(center, x, y, z);
+    triangle[t[1]][1]:=a; triangle[t[1]][2]:=b; triangle[t[1]][3]:=c;
+    triangle[t[2]][1]:=a; triangle[t[2]][2]:=c; triangle[t[2]][3]:=d;
+    triangle[t[3]][1]:=e; triangle[t[3]][2]:=a; triangle[t[3]][3]:=d;
+    triangle[t[4]][1]:=e; triangle[t[4]][2]:=d; triangle[t[4]][3]:=h;
+    triangle[t[5]][1]:=h; triangle[t[5]][2]:=d; triangle[t[5]][3]:=c;
+    triangle[t[6]][1]:=h; triangle[t[6]][2]:=c; triangle[t[6]][3]:=g;
+    triangle[t[7]][1]:=g; triangle[t[7]][2]:=c; triangle[t[7]][3]:=b;
+    triangle[t[8]][1]:=g; triangle[t[8]][2]:=b; triangle[t[8]][3]:=f;
+    triangle[t[9]][1]:=f; triangle[t[9]][2]:=b; triangle[t[9]][3]:=a;
+    triangle[t[10]][1]:=f; triangle[t[10]][2]:=a; triangle[t[10]][3]:=e;
+    triangle[t[11]][1]:=e; triangle[t[11]][2]:=h; triangle[t[11]][3]:=g;
+    triangle[t[12]][1]:=e; triangle[t[12]][2]:=g; triangle[t[12]][3]:=f;
+    for a:=1 to 12 do
+      triangle[t[a]][4]:=random(7)+8;
+    firstvertex:=verticescount+1;
+    firsttriangle:=trianglescount+1;
+    verticescount:=verticescount+8;
+    trianglescount:=trianglescount+12;
+    lastvertex:=verticescount;
+    lasttriangle:=trianglescount;
+  end;
+end;
+
+procedure make_cone(var o: tobject; h, r: single; c: integer; x, y, z: single);
+begin
+
+end;
+
+end.
