@@ -7,16 +7,17 @@ type
   tvector=array[1..3] of single;
 
 procedure setvector(var v: tvector; x, y, z: single);
-procedure copyvector(var v1: tvector; v2: tvector);
+procedure copyvector(var v1: tvector; const v2: tvector);
 procedure nullvector(var v: tvector);
-procedure addvector(v1, v2: tvector; var v: tvector);
-procedure subtractvector(v1, v2: tvector; var v: tvector);
+procedure addvector(const v1, v2: tvector; var v: tvector);
+procedure subtractvector(const v1, v2: tvector; var v: tvector);
 procedure scalevector(var v: tvector; a: single);
 procedure normalizevector(var v: tvector);
-function vectorlength(v: tvector): single;
-procedure vectorproduct(v1, v2: tvector; var v: tvector);
-function vectordotproduct(v1, v2: tvector): single;
-function vectoranglecos(v1, v2: tvector): single;
+function vectorlength(const v: tvector): single;
+procedure vectorproduct(const v1, v2: tvector; var v: tvector);
+function vectordotproduct(const v1, v2: tvector): single;
+function vectoranglecos(const v1, v2: tvector): single;
+function vectorangle(const v1, v2: tvector): single;
 procedure rotatevector(c, n: tvector; a: single; var v: tvector);
 
 
@@ -29,7 +30,7 @@ begin
   v[3]:=z;
 end;
 
-procedure copyvector(var v1: tvector; v2: tvector);
+procedure copyvector(var v1: tvector; const v2: tvector);
 begin
   v1[1]:=v2[1];
   v1[2]:=v2[2];
@@ -43,14 +44,14 @@ begin
   v[3]:=0;
 end;
 
-procedure addvector(v1, v2: tvector; var v: tvector);
+procedure addvector(const v1, v2: tvector; var v: tvector);
 begin
   v[1]:=v1[1]+v2[1];
   v[2]:=v1[2]+v2[2];
   v[3]:=v1[3]+v2[3];
 end;
 
-procedure subtractvector(v1, v2: tvector; var v: tvector);
+procedure subtractvector(const v1, v2: tvector; var v: tvector);
 begin
   v[1]:=v1[1]-v2[1];
   v[2]:=v1[2]-v2[2];
@@ -74,42 +75,47 @@ begin
   v[3]:=v[3]/d;
 end;
 
-function vectorlength(v: tvector): single;
+function vectorlength(const v: tvector): single;
 begin
   vectorlength:=sqrt(sqr(v[1])+sqr(v[2])+sqr(v[3]));
 end;
 
-procedure vectorproduct(v1, v2: tvector; var v: tvector);
+procedure vectorproduct(const v1, v2: tvector; var v: tvector);
 begin
   v[1]:=v1[2]*v2[3]-v1[3]*v2[2];
   v[2]:=v1[3]*v2[1]-v1[1]*v2[3];
   v[3]:=v1[1]*v2[2]-v1[2]*v2[1];
 end;
 
-function vectordotproduct(v1, v2: tvector): single;
+function vectordotproduct(const v1, v2: tvector): single;
 begin
   vectordotproduct:=v1[1]*v2[1]+v1[2]*v2[2]+v1[3]*v2[3];
 end;
 
-function vectoranglecos(v1, v2: tvector): single;
+function vectoranglecos(const v1, v2: tvector): single;
 begin
   vectoranglecos:=vectordotproduct(v1, v2)/(vectorlength(v1)*vectorlength(v2));
 end;
 
+function vectorangle(const v1, v2: tvector): single;
+var
+  v: tvector;
+begin
+  vectorproduct(v1, v2, v);
+  vectorangle:=arctan(vectorlength(v)/vectordotproduct(v1, v2));
+end;
+
 procedure rotatevector(c, n: tvector; a: single; var v: tvector);
 var
-  si, co, tx, ty: single;
+  si, co: single;
+  tv: tvector;
 begin
   si:=sin(a);
   co:=cos(a);
-  v[1]:=v[1]-c[1];
-  v[2]:=v[2]-c[2];
-  v[3]:=v[3]-c[3];
-  tx:=c[1]+(co+(1-co)*sqr(n[1]))*v[1] + ((1-co)*n[1]*n[2]-si*n[3])*v[2] + ((1-co)*n[1]*n[3]+si*n[2])*v[3];
-  ty:=c[2]+((1-co)*n[1]*n[2]+si*n[3])*v[1] + (co+(1-co)*sqr(n[2]))*v[2] + ((1-co)*n[2]*n[3]-si*n[1])*v[3];
-  v[3]:=c[3]+((1-co)*n[1]*n[3]-si*n[2])*v[1] + ((1-co)*n[3]*n[2]+si*n[1])*v[2] + (co+(1-co)*sqr(n[3]))*v[3];
-  v[1]:=tx;
-  v[2]:=ty;
+  subtractvector(v, c, tv);
+  v[1]:=c[1]+(co+(1-co)*sqr(n[1]))*tv[1] + ((1-co)*n[1]*n[2]-si*n[3])*tv[2] + ((1-co)*n[1]*n[3]+si*n[2])*tv[3];
+  v[2]:=c[2]+((1-co)*n[1]*n[2]+si*n[3])*tv[1] + (co+(1-co)*sqr(n[2]))*tv[2] + ((1-co)*n[2]*n[3]-si*n[1])*tv[3];
+  v[3]:=c[3]+((1-co)*n[1]*n[3]-si*n[2])*tv[1] + ((1-co)*n[3]*n[2]+si*n[1])*tv[2] + (co+(1-co)*sqr(n[3]))*tv[3];
 end;
 
 end.
