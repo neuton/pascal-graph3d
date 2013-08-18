@@ -35,12 +35,12 @@ type
     palette: array [0..255, 0..3] of byte; {таблица палитры}
     end;
 
-procedure bmpload(var b: tbitmap; var p: tpalette; n: string);
+procedure bmpload(var b: tbitmap; var w: byte; var p: tpalette; n: string);
 
 
 implementation
 
-procedure bmpload(var b: tbitmap; var p: tpalette; n: string);
+procedure bmpload(var b: tbitmap; var w: byte; var p: tpalette; n: string);
 var
   h: bmHeader;
   i: integer;
@@ -51,6 +51,7 @@ begin
   reset(f);
   blockread(f, h, sizeof(h));
   getmem(b, h.ih.sizi);
+  w:=h.ih.widt;
   for i:=h.ih.heig-1 downto 0 do
   begin
     blockread(f, b^[i*h.ih.widt], h.ih.widt);

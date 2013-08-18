@@ -19,9 +19,6 @@ const
 type
   tscrbuffer = array [0..buffersize-1] of byte;
   twbuffer = array [0..buffersize-1] of single;
-  tcamera = record
-    position, direction, up: tvector;
-    end;
   tobject = record
     firstvertex, lastvertex, firsttriangle, lasttriangle: longint;
     center: tvector;
@@ -45,9 +42,7 @@ function computelighting(n: longint): single;
 function computelightingcolor(color: byte; l: single): byte;
 procedure drawline(x1, y1, x2, y2: integer; color: byte);
 procedure drawtriangle(n: integer);
-procedure worldtocamera(const x: tvector; var v: tvector);
 procedure cameratoscreen(const v: tvector; var x, y: integer);
-procedure worldtoscreen(const v: tvector; var x, y: integer );
 procedure render;
 procedure moveobject(const v: tvector; var o: tobject);
 procedure rotateobject(const c, n: tvector; a: single; var o: tobject);
@@ -61,11 +56,10 @@ var
   scrsc, scrwidth, scrheight, trianglescount, verticescount: integer;
   vertex: array [1..maxverticescount] of tvector;
   scrvertex: array [1..maxverticescount] of array [1..2] of integer;
-  zvertex: array [1..maxverticescount] of single;
   triangle: array [1..maxtrianglescount] of ttriangle;
   light: array [1..maxlightscount] of tvector;
+  normlight: array [1..maxlightscount] of tvector;
   lightscount: byte;
-  camera: tcamera;
 
 
 
@@ -92,15 +86,6 @@ begin
   intr($10, regs);  }
   new(buffer);
   new(wbuffer);
-  trianglescount:=0;
-  verticescount:=0;
-  lightscount:=0;
-  with camera do
-  begin
-    setvector(position, 0, 0, 0);
-    setvector(direction, 0, 1, 0);
-    setvector(up, 0, 0, 1);
-  end;
 end;
 
 
@@ -168,7 +153,7 @@ end;
 
 function computelightingcolor(color: byte; l: single): byte;
 var
-  i: byte;
+  i: word;
 begin
   if color<32 then
     computelightingcolor:=round((color-16)*l)+16
@@ -210,18 +195,20 @@ procedure drawtriangle(n: integer);
 
 var
   v1, v2, v3, v: tvector;
-  x1, y1, x2, y2, x3, y3, tcx1, tcy1, tcx2, tcy2, tcx3, tcy3, i, j, ti1, ti2, sj, t1, t2, w, dcx, dcy, dcx1, dcy1, dcx2, dcy2: integer;
+  x1, y1, x2, y2, x3, y3, tcx1, tcy1, tcx2, tcy2, tcx3, tcy3, i, j, ti1, ti2, sj, t1, t2, w: integer;
   p: longint;
-  ttcx1, ttcx2, ttcy1, ttcy2, cl, k: byte;
-  uz1, uz2, uz3, d1, d3, duz, duz1, duz3, tuz1, tuz2, tz, tn, z1, z2, z3, tz1, tz2, dtz, dtz1, l, t, tl, dz, dz1, dz2: single;
+  ttcx1, ttcx2, ttcy1, ttcy2: byte;
+  uz1, uz2, uz3, d1, d3, duz, duz1, duz3, tuz1, tuz2, tz, tn, z1, z2, z3, tz1, tz2, dtz, dtz1, l: single;
   btm, bmm: tbitmap;
+  cl: byte;
   bump: boolean;
-  normlight: array [1..maxlightscount] of tvector;
-  drawstring: procedure;
 
 function computebump: single;
+var
+  k: word;
+  t, tl: single;
 begin
-  setvector(v, (bmm^[p-1]-bmm^[p])/128, 1, (bmm^[p-w]-bmm^[p])/128);
+  setvector(v, bmm^[p-1]-bmm^[p], 1, bmm^[p-w]-bmm^[p]);
   normalizevector(v);
   t:=0;
   for k:=1 to lightscount do
@@ -233,7 +220,7 @@ begin
   computebump:=t;
 end;
 
-procedure drawcoloredstring; far;
+{procedure drawcoloredstring; far;
 begin
   if t1>t2 then
   begin
@@ -245,35 +232,38 @@ begin
   begin
     if tz>wbuffer^[i] then
     begin
-      buffer^[i]:=cl;
+      if bump
+      then buffer^[i]:=computelightingcolor(triangle[n].material^.color, computebump)
+      else buffer^[i]:=cl;
       wbuffer^[i]:=tz;
     end;
     tz:=tz+duz;
   end;
-end;
+end;     }
 
-procedure drawtexturedstring; far;
+procedure drawstring;
 begin
-  tn:=(tz1-dz)*dz1;
-  ttcx1:=dcx+round(dcx1*tn); ttcy1:=dcy+round(dcy1*tn);
-  tn:=(tz2-z1)*dz2;
-  ttcx2:=tcx1+round(dcx2*tn); ttcy2:=tcy1+round(dcy2*tn);
   if t1>t2 then
   begin
     tz:=(t2-t1)*duz+tuz1;
     swapi(t1, t2);
   end
   else tz:=tuz1;
-  dtz:=1/(tz2-tz1);
-  dtz1:=-tz1*dtz;
+  if (w>0) or (bump) then
+  begin
+    dtz:=1/(tz2-tz1);
+    dtz1:=-tz1*dtz;
+  end;
   for i:=t1 to t2-1 do
   begin
-    tn:=dtz/tz+dtz1;
+    if (w>0) or (bump) then tn:=dtz/tz+dtz1;
     if tz>wbuffer^[i] then
     begin
-      p:=ttcx1+round((ttcx2-ttcx1)*tn)+w*round((ttcy1+(ttcy2-ttcy1)*tn));
+      if (w>0) or (bump) then p:=ttcx1+round((ttcx2-ttcx1)*tn)+w*round((ttcy1+(ttcy2-ttcy1)*tn));
       if bump then l:=computebump;
-      buffer^[i]:=computelightingcolor(btm^[p], l);
+      if w>0 then buffer^[i]:=computelightingcolor(btm^[p], l)
+      else if bump then buffer^[i]:=computelightingcolor(triangle[n].material^.color, l)
+      else buffer^[i]:=cl;
       wbuffer^[i]:=tz;
     end;
     tz:=tz+duz;
@@ -289,11 +279,35 @@ begin
     v1[1]:=x2-x1; v1[2]:=y2-y1; v1[3]:=0;
     v2[1]:=x3-x1; v2[2]:=y3-y1; v2[3]:=0;
     vectorproduct(v1, v2, v);
-    if v[3]>0 then
+    if v[3]<0 then
     begin
-      z1:=zvertex[vertexid[1]]; z2:=zvertex[vertexid[2]]; z3:=zvertex[vertexid[3]];
+      z1:=vertex[vertexid[1]][3]; z2:=vertex[vertexid[2]][3]; z3:=vertex[vertexid[3]][3];
       w:=material^.width;
-      if material^.bitmap<>nil then
+      bump:=false;
+      if material^.bumpmap<>nil then
+      begin
+        bump:=true;
+        for i:=1 to lightscount do
+          begin
+          copyvector(normlight[i], light[i]);
+          v1[1]:=vertex[vertexid[2]][1]-vertex[vertexid[1]][1];
+          v1[2]:=vertex[vertexid[2]][2]-vertex[vertexid[1]][2];
+          v1[3]:=vertex[vertexid[2]][3]-vertex[vertexid[1]][3];
+          v2[1]:=vertex[vertexid[3]][1]-vertex[vertexid[1]][1];
+          v2[2]:=vertex[vertexid[3]][2]-vertex[vertexid[1]][2];
+          v2[3]:=vertex[vertexid[3]][3]-vertex[vertexid[1]][3];
+          vectorproduct(v1, v2, v);
+          setvector(v2, 0, 1, 0);
+          vectorproduct(v, v2, v1);
+          normalizevector(v1);
+          nullvector(v3);
+          l:=vectoranglecos(v, v2);
+          rotatevector(v3, v1, arctan(Sqrt(1-sqr(l))/l)*l/abs(l), normlight[i]);
+          end;
+        bmm:=material^.bumpmap;
+      end;
+      l:=computelighting(n);
+      if w>0 then
       begin
         dec(w);
         tcx1:=round(tc[1][1]*w); tcy1:=round(tc[1][2]*w);
@@ -301,36 +315,12 @@ begin
         tcx3:=round(tc[3][1]*w); tcy3:=round(tc[3][2]*w);
         inc(w);
         btm:=material^.bitmap;
-        bump:=false;
-        if material^.bumpmap=nil then l:=computelighting(n)
-        else
-        begin
-          bump:=true;
-          for i:=1 to lightscount do
-          begin
-            copyvector(normlight[i], light[i]);
-            v1[1]:=vertex[vertexid[2]][1]-vertex[vertexid[1]][1];
-            v1[2]:=vertex[vertexid[2]][2]-vertex[vertexid[1]][2];
-            v1[3]:=vertex[vertexid[2]][3]-vertex[vertexid[1]][3];
-            v2[1]:=vertex[vertexid[3]][1]-vertex[vertexid[1]][1];
-            v2[2]:=vertex[vertexid[3]][2]-vertex[vertexid[1]][2];
-            v2[3]:=vertex[vertexid[3]][3]-vertex[vertexid[1]][3];
-            vectorproduct(v1, v2, v);
-            setvector(v2, 0, 1, 0);
-            vectorproduct(v, v2, v1);
-            normalizevector(v1);
-            nullvector(v3);
-            l:=vectoranglecos(v, v2);
-            rotatevector(v3, v1, arctan(Sqrt(1-sqr(l))/l)*l/abs(l), normlight[i]);
-          end;
-          bmm:=material^.bumpmap;
-        end;
-        drawstring:=drawtexturedstring;
+        //drawstring:=drawtexturedstring;
       end
       else
       begin
-        cl:=computelightingcolor(material^.color, computelighting(n));
-        drawstring:=drawcoloredstring;
+        cl:=computelightingcolor(material^.color, l);
+        //drawstring:=drawcoloredstring;
       end;
       if y1>y2 then begin swapi(y1, y2); swapi(x1, x2); swaps(z1, z2); swapi(tcx1, tcx2); swapi(tcy1, tcy2); end;
       if y2>y3 then
@@ -344,13 +334,18 @@ begin
       ti1:=x1-round(y1*d1); ti2:=x1-round(y1*d3);
       sj:=y1*scrwidth;
       tuz1:=uz1; tuz2:=uz1;
-      dcx1:=tcx2-tcx1; dcy1:=tcy2-tcy1; dz1:=1/(z2-z1); dcx:=tcx1; dcy:=tcy1;
-      dcx2:=tcx3-tcx1; dcy2:=tcy3-tcy1; dz2:=1/(z3-z1); dz:=z1;
       for j:=y1 to y2 do
         begin
         tz1:=1/tuz1; tz2:=1/tuz2;
         t1:=ti1+round(j*d1)+sj; t2:=ti2+round(j*d3)+sj;
         duz:=(tuz2-tuz1)/(t2-t1);
+        if w>0 then
+        begin
+          tn:=(tz1-z1)/(z2-z1);
+          ttcx1:=tcx1+round((tcx2-tcx1)*tn); ttcy1:=tcy1+round((tcy2-tcy1)*tn);
+          tn:=(tz2-z1)/(z3-z1);
+          ttcx2:=tcx1+round((tcx3-tcx1)*tn); ttcy2:=tcy1+round((tcy3-tcy1)*tn);
+        end;
         drawstring;
         sj:=sj+scrwidth;
         tuz1:=tuz1+duz1; tuz2:=tuz2+duz3;
@@ -359,13 +354,19 @@ begin
       d1:=(x3-x2)/(y3-y2);
       ti1:=x3-round(y3*d1); ti2:=x3-round(y3*d3);
       tuz1:=uz2; tuz2:=uz1+(y2-y1)*duz3;
-      dcx1:=tcx3-tcx2; dcy1:=tcy3-tcy2; dz1:=1/(z3-z2); dz:=z2; dcx:=tcx2; dcy:=tcy2;
       for j:=y2+1 to y3 do
         begin
         t1:=ti1+round(j*d1)+sj; t2:=ti2+round(j*d3)+sj;
         tuz1:=tuz1+duz1; tuz2:=tuz2+duz3;
         tz1:=1/tuz1; tz2:=1/tuz2;
         duz:=(tuz2-tuz1)/(t2-t1);
+        if w>0 then
+        begin
+          tn:=(tz1-z2)/(z3-z2);
+          ttcx1:=tcx2+round((tcx3-tcx2)*tn); ttcy1:=tcy2+round((tcy3-tcy2)*tn);
+          tn:=(tz2-z1)/(z3-z1);
+          ttcx2:=tcx1+round((tcx3-tcx1)*tn); ttcy2:=tcy1+round((tcy3-tcy1)*tn);
+        end;
         drawstring;
         sj:=sj+scrwidth;
         end;
@@ -374,72 +375,33 @@ begin
 end;
 
 
-procedure worldtocamera(const x: tvector; var v: tvector);
-var
-  x1, x2: tvector;
-  e, s: array [1..3] of tvector;
-  udet: single;
-begin
-  with camera do
-  begin
-    vectorproduct(up, direction, x1);
-    normalizevector(x1);
-    vectorproduct(direction, x1, x2);
-    normalizevector(x2);
-    copyvector(e[1], x1);
-    copyvector(e[2], x2);
-    copyvector(e[3], direction);
-  end;
-  udet:=1/(e[1][1]*e[2][2]*e[3][3]+e[2][1]*e[3][2]*e[1][3]+e[3][1]*e[1][2]*e[2][3]-
-       e[3][1]*e[2][2]*e[1][3]-e[2][1]*e[1][2]*e[3][3]-e[1][1]*e[3][2]*e[2][3]);
-  s[1][1]:=e[2][2]*e[3][3]-e[3][2]*e[2][3];
-  s[2][1]:=e[3][2]*e[1][3]-e[1][2]*e[3][3];
-  s[3][1]:=e[1][2]*e[2][3]-e[2][2]*e[1][3];
-  s[1][2]:=e[3][1]*e[2][3]-e[2][1]*e[3][3];
-  s[2][2]:=e[1][1]*e[3][3]-e[3][1]*e[1][3];
-  s[3][2]:=e[2][1]*e[1][3]-e[1][1]*e[2][3];
-  s[1][3]:=e[2][1]*e[3][2]-e[3][1]*e[2][2];
-  s[2][3]:=e[3][1]*e[1][2]-e[1][1]*e[3][2];
-  s[3][3]:=e[1][1]*e[2][2]-e[2][1]*e[1][2];
-  copyvector(x1, x);
-  subtractvector(x1, camera.position, x1);
-  v[1]:=-(s[1][1]*x1[1]+s[1][2]*x1[2]+s[1][3]*x1[3])*udet;
-  v[2]:=(s[2][1]*x1[1]+s[2][2]*x1[2]+s[2][3]*x1[3])*udet;
-  v[3]:=(s[3][1]*x1[1]+s[3][2]*x1[2]+s[3][3]*x1[3])*udet;
-end;
-
-
 procedure cameratoscreen(const v: tvector; var x, y: integer);
 var
-  v3: single;
+    v3: single;
 begin
-  v3:=scrsc/v[3];
+    v3:=scrsc/v[3];
   x:=(scrwidth shr 1)+round(v3*v[1]);
   y:=(scrheight shr 1)-round(v3*v[2]);
-end;
-
-
-procedure worldtoscreen(const v: tvector; var x, y: integer );
-var
-  v1: tvector;
-begin
-  worldtocamera(v, v1);
-  cameratoscreen(v1, x, y);
 end;
 
 
 procedure render;
 var
   i: longint;
-  v: tvector;
 begin
   for i:=1 to verticescount do
-  begin
-    worldtocamera(vertex[i], v);
-    zvertex[i]:=v[3];
-    cameratoscreen(v, scrvertex[i][1], scrvertex[i][2]);
-  end;
+    cameratoscreen(vertex[i], scrvertex[i][1], scrvertex[i][2]);
   for i:=1 to trianglescount do drawtriangle(i);
+    {with triangle[i] do
+      begin
+      s:=round(sqrt(sizeof(material^.bitmap^)))-1;
+      drawtriangle(m[vertexid[1]][1], m[vertexid[1]][2],
+                   m[vertexid[2]][1], m[vertexid[2]][2],
+                   m[vertexid[3]][1], m[vertexid[3]][2],
+                   1/vertex[vertexid[1]][3], 1/vertex[vertexid[2]][3], 1/vertex[vertexid[3]][3],
+                   round(tc[1][1]*s), round(tc[1][2]*s), round(tc[2][1]*s), round(tc[2][2]*s), round(tc[3][1]*s), round(tc[3][2]*s),
+                   material, computelighting(i));
+      end;     }
   updatescreen;
 end;
 
@@ -469,10 +431,10 @@ var
   p: tpalette;
   t: string;
 begin
-  t:=n;
-  delete(t, 1, length(n)-3);
-  if t='bmp' then
-    bmpload(b, w, p, n);
+t:=n;
+delete(t, 1, length(n)-3);
+if t='bmp' then
+bmpload(b, w, p, n);
 end;
 
 

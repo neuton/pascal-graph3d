@@ -31,8 +31,6 @@ begin
     triangle[t[2]].vertexid[1]:=a; triangle[t[2]].vertexid[2]:=c; triangle[t[2]].vertexid[3]:=d;
     triangle[t[3]].vertexid[1]:=a; triangle[t[3]].vertexid[2]:=d; triangle[t[3]].vertexid[3]:=b;
     triangle[t[4]].vertexid[1]:=b; triangle[t[4]].vertexid[2]:=d; triangle[t[4]].vertexid[3]:=c;
-    {for a:=1 to 4 do
-      triangle[t[a]].color:=31;  }
     firstvertex:=verticescount+1;
     firsttriangle:=trianglescount+1;
     verticescount:=verticescount+4;
