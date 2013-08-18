@@ -1,26 +1,37 @@
 uses vectors, graph3d, primitiv, crt;
 var
   {p1, p2, }c1, c2: tobject;
-  v: tvector;
+  v, m: tvector;
   a: single;
+  i, j: byte;
 begin
   opengraph(200, 320, 200);
+  addlight(-1, 0, 0.8);
   {make_pyramid(p1, 5, 0, 0, 20);
   make_pyramid(p2, -5, 0, 0, 20);}
-  make_cube(c1, 5, 0, 0, 20);
-  make_cube(c2, 4.5, 0, 0, 20);
+  make_cube(c1, 5);
+  make_cube(c2, 4.5);
+  setvector(m, 0, 0, 20);
+  moveobject(m, c1);
+  moveobject(m, c2);
+  setvector(m, 0, 0, 0);
   setvector(v, 0, 1, 0);
   repeat
     render;
     {rotateobject(p1.center, v, 0.01, p1);
     rotateobject(p2.center, v, 0.004, p2);}
-    rotateobject(c1.center, v, -0.01, c1);
-    rotateobject(c2.center, v, 0.02, c2);
+    moveobject(m, c1);
+    rotateobject(c1.center, v, -0.02, c1);
+    //rotateobject(c2.center, v, 0.05, c2);
     setvector(v, sin(a), 1, cos(a));
+    m[1]:=cos(a)/10;
     normalizevector(v);
-    a:=a+0.001;
+    a:=a+0.01;
     if a>2*pi then a:=a-2*pi;
     {delay(100);}
   until keypressed;
+  {for j:=0 to 15 do
+  for i:=0 to 255 do screen^[i+j*scrwidth]:=i;
+  repeat until keypressed;       }
   closegraph;
 end.

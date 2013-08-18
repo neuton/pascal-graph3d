@@ -74,7 +74,7 @@ begin
   v[3]:=v[3]/d;
 end;
 
-function vectorlength(v: tvector): single;
+function vectorlength(v: tvector);
 begin
   vectorlength:=sqrt(sqr(v[1])+sqr(v[2])+sqr(v[3]));
 end;

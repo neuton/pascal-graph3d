@@ -19,10 +19,13 @@ type
 procedure opengraph(ss, sw, sh: integer);
 procedure closegraph;
 procedure updatescreen;
+procedure addlight(x, y, z: single);
+function computelighting(n: longint): byte;
 procedure drawline(x1, y1, x2, y2: integer; color: byte);
 procedure drawtriangle(x1, y1, x2, y2, x3, y3: integer; uz1, uz2, uz3: single; color: byte);
 procedure cameratoscreen(v: tvector; var x, y: integer);
 procedure render;
+procedure moveobject(v: tvector; var o: tobject);
 procedure rotateobject(c, n: tvector; a: single; var o: tobject);
 
 var
@@ -31,6 +34,8 @@ var
   scrsc, scrwidth, scrheight, trianglescount, verticescount: integer;
   vertex: array [1..1000] of tvector;
   triangle: array [1..1000] of array [1..4] of integer;
+  light: array [1..10] of tvector;
+  lightscount: byte;
 
 
 implementation
@@ -48,6 +53,7 @@ begin
   screen:=ptr($a000, 0);
   new(buffer);
   new(wbuffer);
+  lightscount:=0;
 end;
 
 procedure closegraph;
@@ -61,6 +67,8 @@ begin
   buffer:=nil;
   dispose(wbuffer);
   wbuffer:=nil;
+  trianglescount:=0;
+  verticescount:=0;
 end;
 
 procedure updatescreen;
@@ -73,6 +81,40 @@ begin
     buffer^[i]:=0;
     wbuffer^[i]:=0;
   end;
+end;
+
+procedure addlight(x, y, z: single);
+begin
+  inc(lightscount);
+  setvector(light[lightscount], x, y, z);
+end;
+
+function computelighting(n: longint): byte;
+var
+  i: byte;
+  v1, v2, v: tvector;
+  l, tl: single;
+begin
+  v1[1]:=vertex[triangle[n][2]][1]-vertex[triangle[n][1]][1];
+  v1[2]:=vertex[triangle[n][2]][2]-vertex[triangle[n][1]][2];
+  v1[3]:=vertex[triangle[n][2]][3]-vertex[triangle[n][1]][3];
+  v2[1]:=vertex[triangle[n][3]][1]-vertex[triangle[n][1]][1];
+  v2[2]:=vertex[triangle[n][3]][2]-vertex[triangle[n][1]][2];
+  v2[3]:=vertex[triangle[n][3]][3]-vertex[triangle[n][1]][3];
+  vectorproduct(v1, v2, v);
+  l:=0;
+  for i:=1 to lightscount do
+  begin
+    tl:=vectoranglecos(v, light[i]);
+    if tl>0 then l:=l+tl;
+    if l>1 then l:=1;
+    if l=1 then break;
+  end;
+  if triangle[n][4]<32 then
+    computelighting:=round((triangle[n][4]-16)*l)+16
+  else
+    if l=0 then computelighting:=0
+    else computelighting:=round((2-((triangle[n][4]-32) div 72))*(1-l))*72+triangle[n][4];
 end;
 
 procedure drawline(x1, y1, x2, y2: integer; color: byte);
@@ -130,7 +172,7 @@ begin
       tuz2:=uz1+(j-y1)*duz3;
       duz:=(tuz2-tuz1)/(t2-t1);
       if t1<t2 then
-      for i:=t1 to t2 do
+      for i:=t1 to t2-1 do
         begin
         tz:=(i-t1)*duz+tuz1;
         if tz>wbuffer^[i] then
@@ -140,7 +182,7 @@ begin
           end;
         end
       else
-      for i:=t2 to t1 do
+      for i:=t2 to t1-1 do
         begin
         tz:=(i-t1)*duz+tuz1;
         if tz>wbuffer^[i] then
@@ -156,15 +198,16 @@ begin
     ti1:=x3-round(y3*d1);
     ti2:=x3-round(y3*d3);
     sj:=y2*scrwidth;
-    for j:=y2 to y3 do
+    for j:=y2+1 to y3 do
       begin
+      sj:=sj+scrwidth;
       t1:=ti1+round(j*d1)+sj;
       t2:=ti2+round(j*d3)+sj;
       tuz1:=uz2+(j-y2)*duz1;
       tuz2:=uz1+(j-y1)*duz3;
       duz:=(tuz2-tuz1)/(t2-t1);
       if t1<t2 then
-      for i:=t1 to t2 do
+      for i:=t1 to t2-1 do
         begin
         tz:=(i-t1)*duz+tuz1;
         if tz>wbuffer^[i] then
@@ -174,7 +217,7 @@ begin
           end;
         end
       else
-      for i:=t2 to t1 do
+      for i:=t2 to t1-1 do
         begin
         tz:=(i-t1)*duz+tuz1;
         if tz>wbuffer^[i] then
@@ -183,7 +226,6 @@ begin
           wbuffer^[i]:=tz;
           end;
         end;
-      sj:=sj+scrwidth;
       end;
   end;
 end;
@@ -209,8 +251,17 @@ begin
         m[triangle[i][2]][1], m[triangle[i][2]][2],
         m[triangle[i][3]][1], m[triangle[i][3]][2],
         1/vertex[triangle[i][1]][3], 1/vertex[triangle[i][2]][3], 1/vertex[triangle[i][3]][3],
-        triangle[i][4]);
+        computelighting(i));
   updatescreen;
+end;
+
+procedure moveobject(v: tvector; var o: tobject);
+var
+  i: integer;
+begin
+  for i:=o.firstvertex to o.lastvertex do
+    addvector(v, vertex[i], vertex[i]);
+  addvector(v, o.center, o.center);
 end;
 
 procedure rotateobject(c, n: tvector; a: single; var o: tobject);
