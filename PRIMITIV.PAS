@@ -27,6 +27,7 @@ begin
     setvector(vertex[c], 0, s, 0);
     setvector(vertex[d], 0, 0, s);
     setvector(center, 0, 0, 0);
+    setvector(direction, 1, 0, 0);
     triangle[t[1]].vertexid[1]:=a; triangle[t[1]].vertexid[2]:=b; triangle[t[1]].vertexid[3]:=c;
     triangle[t[2]].vertexid[1]:=a; triangle[t[2]].vertexid[2]:=c; triangle[t[2]].vertexid[3]:=d;
     triangle[t[3]].vertexid[1]:=a; triangle[t[3]].vertexid[2]:=d; triangle[t[3]].vertexid[3]:=b;
@@ -62,6 +63,7 @@ begin
     setvector(vertex[g], -s, -s, s);
     setvector(vertex[h], -s, -s, -s);
     setvector(center, 0, 0, 0);
+    setvector(direction, 1, 0, 0);
     with triangle[t[1]] do
     begin
       vertexid[1]:=a; vertexid[2]:=b; vertexid[3]:=c;

@@ -24,13 +24,13 @@ end;
 procedure settexturedmaterials;
 begin
   mat.color:=21;
-  white.color:=31;
-  yellow.color:=44;
   loadbitmap(red.bitmap, red.width, 'nt1.bmp');
-  //loadbitmap(red.bumpmap, red.width, 'nt1.bmp');
-  green.color:=45;
-  blue.color:=32;
-  orange.color:=41;
+  loadbitmap(green.bitmap, green.width, 'nt1.bmp');
+  loadbitmap(blue.bitmap, blue.width, 'nt1.bmp');
+  loadbitmap(white.bitmap, white.width, 'nt1.bmp');
+  loadbitmap(yellow.bitmap, yellow.width, 'nt1.bmp');
+  loadbitmap(orange.bitmap, orange.width, 'nt1.bmp');
+  //loadbitmap(red.bumpmap, red.width, 'tile.bmp');
 end;
 
 procedure createcube;
@@ -127,17 +127,28 @@ end;
 
 procedure update;
 var
-  i, j, k: shortint;
-  v: tvector;
+  i, j, k, pb: shortint;
+  pv, pv1: tvector;
+  pa: single;
 begin
   for i:=-1 to 1 do
     for j:=-1 to 1 do
       for k:=-1 to 1 do
         begin
         t[round(c[i,j,k].center[1]), round(c[i,j,k].center[2]), round(c[i,j,k].center[3])]:=@c[i,j,k];
-        setvector(v, round(c[i,j,k].center[1]), round(c[i,j,k].center[2]), round(c[i,j,k].center[3]));
-        subtractvector(v, c[i,j,k].center, v);
-        moveobject(v, c[i,j,k]);
+        setvector(pv, round(c[i,j,k].center[1]), round(c[i,j,k].center[2]), round(c[i,j,k].center[3]));
+        subtractvector(pv, c[i,j,k].center, pv);
+        moveobject(pv, c[i,j,k]);
+        {pb:=1;
+        if abs(c[i,j,k].direction[2])>abs(c[i,j,k].direction[pb]) then pb:=2;
+        if abs(c[i,j,k].direction[3])>abs(c[i,j,k].direction[pb]) then pb:=3;
+        nullvector(pv);
+        pv[pb]:=round(c[i,j,k].direction[pb]);
+        pa:=vectoranglecos(c[i,j,k].direction, pv);
+        pa:=arctan(Sqrt(1-sqr(pa))/pa)*pa/abs(pa);
+        vectorproduct(pv, c[i,j,k].direction, pv1);
+        normalizevector(pv1);
+        rotateobject(c[i,j,k].center, pv1, pa, c[i,j,k]);   }
         end;
 end;
 
@@ -158,9 +169,10 @@ begin
   nullvector(v0);
   setvector(camera.position, 0, -8, 0);
   addlight(1, 0, 0);
+  addlight(2, 1, 0);
   copyvector(light[1], camera.direction);
-  setcoloredmaterials;
-  //settexturedmaterials;
+  //setcoloredmaterials;
+  settexturedmaterials;
   createcube;
   mix;
   b:=0.1;
@@ -194,6 +206,7 @@ begin
       vectorproduct(direction, tv, up);
       normalizevector(up);
       copyvector(light[1], direction);
+      //scalevector(light[1], 1.5);
       a:=a*0.7;
     end;
     if tb>=0 then

@@ -24,7 +24,7 @@ type
     end;
   tobject = record
     firstvertex, lastvertex, firsttriangle, lasttriangle: longint;
-    center: tvector;
+    center, direction: tvector;
     end;
   tmaterial = record
     color, width: byte;
@@ -213,7 +213,7 @@ var
   x1, y1, x2, y2, x3, y3, tcx1, tcy1, tcx2, tcy2, tcx3, tcy3, i, j, ti1, ti2, sj, t1, t2, w, dcx, dcy, dcx1, dcy1, dcx2, dcy2: integer;
   p: longint;
   ttcx1, ttcx2, ttcy1, ttcy2, cl, k: byte;
-  uz1, uz2, uz3, d1, d3, duz, duz1, duz3, tuz1, tuz2, tz, tn, z1, z2, z3, tz1, tz2, dtz, dtz1, l, t, tl, dz, dz1, dz2: single;
+  uz1, uz2, uz3, d1, d3, duz, duz1, duz3, tuz1, tuz2, tz, tn, z1, z2, z3, tz1, tz2, dtz, dtz1, l, t, tl, dz, dz1, dz2, dy, dy1, dy2, j1, j3: single;
   btm, bmm: tbitmap;
   bump: boolean;
   normlight: array [1..maxlightscount] of tvector;
@@ -254,29 +254,53 @@ end;
 
 procedure drawtexturedstring; far;
 begin
-  tn:=(tz1-dz)*dz1;
-  ttcx1:=dcx+round(dcx1*tn); ttcy1:=dcy+round(dcy1*tn);
-  tn:=(tz2-z1)*dz2;
-  ttcx2:=tcx1+round(dcx2*tn); ttcy2:=tcy1+round(dcy2*tn);
   if t1>t2 then
   begin
     tz:=(t2-t1)*duz+tuz1;
     swapi(t1, t2);
   end
   else tz:=tuz1;
-  dtz:=1/(tz2-tz1);
-  dtz1:=-tz1*dtz;
-  for i:=t1 to t2-1 do
+  if abs(tz2-tz1)<0.01 then
   begin
-    tn:=dtz/tz+dtz1;
-    if tz>wbuffer^[i] then
+    tn:=(j-dy)*dy1;
+    ttcx1:=dcx+round(dcx1*tn); ttcy1:=dcy+round(dcy1*tn);
+    tn:=(j-y1)*dy2;
+    ttcx2:=tcx1+round(dcx2*tn); ttcy2:=tcy1+round(dcy2*tn);
+    dtz:=1/(t2-t1);
+    tn:=0;
+    for i:=t1 to t2-1 do
     begin
-      p:=ttcx1+round((ttcx2-ttcx1)*tn)+w*round((ttcy1+(ttcy2-ttcy1)*tn));
-      if bump then l:=computebump;
-      buffer^[i]:=computelightingcolor(btm^[p], l);
-      wbuffer^[i]:=tz;
+      if tz>wbuffer^[i] then
+      begin
+        p:=ttcx1+round((ttcx2-ttcx1)*tn)+w*round((ttcy1+(ttcy2-ttcy1)*tn));
+        if bump then l:=computebump;
+        buffer^[i]:=computelightingcolor(btm^[p], l);
+        wbuffer^[i]:=tz;
+      end;
+      tn:=tn+dtz;
+      tz:=tz+duz;
     end;
-    tz:=tz+duz;
+  end
+  else
+  begin
+    tn:=(tz1-dz)*dz1;
+    ttcx1:=dcx+round(dcx1*tn); ttcy1:=dcy+round(dcy1*tn);
+    tn:=(tz2-z1)*dz2;
+    ttcx2:=tcx1+round(dcx2*tn); ttcy2:=tcy1+round(dcy2*tn);
+    dtz:=1/(tz2-tz1);
+    dtz1:=tz1*dtz;
+    for i:=t1 to t2-1 do
+    begin
+      tn:=dtz/tz-dtz1;
+      if tz>wbuffer^[i] then
+      begin
+        p:=ttcx1+round((ttcx2-ttcx1)*tn)+w*round((ttcy1+(ttcy2-ttcy1)*tn));
+        if bump then l:=computebump;
+        buffer^[i]:=computelightingcolor(btm^[p], l);
+        wbuffer^[i]:=tz;
+      end;
+      tz:=tz+duz;
+    end;
   end;
 end;
 
@@ -346,10 +370,13 @@ begin
       tuz1:=uz1; tuz2:=uz1;
       dcx1:=tcx2-tcx1; dcy1:=tcy2-tcy1; dz1:=1/(z2-z1); dcx:=tcx1; dcy:=tcy1;
       dcx2:=tcx3-tcx1; dcy2:=tcy3-tcy1; dz2:=1/(z3-z1); dz:=z1;
+      dy:=y1; dy1:=1/(y2-y1); dy2:=1/(y3-y1);
+      j1:=y1*d1; j3:=y1*d3;
       for j:=y1 to y2 do
         begin
         tz1:=1/tuz1; tz2:=1/tuz2;
-        t1:=ti1+round(j*d1)+sj; t2:=ti2+round(j*d3)+sj;
+        t1:=ti1+round(j1)+sj; t2:=ti2+round(j3)+sj;
+        j1:=j1+d1; j3:=j3+d3;
         duz:=(tuz2-tuz1)/(t2-t1);
         drawstring;
         sj:=sj+scrwidth;
@@ -360,9 +387,12 @@ begin
       ti1:=x3-round(y3*d1); ti2:=x3-round(y3*d3);
       tuz1:=uz2; tuz2:=uz1+(y2-y1)*duz3;
       dcx1:=tcx3-tcx2; dcy1:=tcy3-tcy2; dz1:=1/(z3-z2); dz:=z2; dcx:=tcx2; dcy:=tcy2;
+      dy:=y2; dy1:=1/(y3-y2);
+      j1:=y2*d1; j3:=y2*d3;
       for j:=y2+1 to y3 do
         begin
-        t1:=ti1+round(j*d1)+sj; t2:=ti2+round(j*d3)+sj;
+        j1:=j1+d1; j3:=j3+d3;
+        t1:=ti1+round(j1)+sj; t2:=ti2+round(j3)+sj;
         tuz1:=tuz1+duz1; tuz2:=tuz2+duz3;
         tz1:=1/tuz1; tz2:=1/tuz2;
         duz:=(tuz2-tuz1)/(t2-t1);
@@ -457,10 +487,13 @@ end;
 procedure rotateobject(const c, n: tvector; a: single; var o: tobject);
 var
   i: integer;
+  v: tvector;
 begin
   for i:=o.firstvertex to o.lastvertex do
     rotatevector(c, n, a, vertex[i]);
   rotatevector(c, n, a, o.center);
+  nullvector(v);
+  rotatevector(v, n, a, o.direction);
 end;
 
 

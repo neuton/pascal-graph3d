@@ -2,8 +2,13 @@ Program SetModer;
 
 Uses DOS, crt;
 
+Type TLongInt=Record
+WordL,WordH:Word;
+End;
+
 Var Regs:Registers;
 i, j: longint;
+bl: word;
 
 Procedure SetBlock(Block:Word);
 Begin
@@ -14,11 +19,15 @@ Intr($10,Regs);
 End;
 
 Procedure SetPixel(Offset,Color:LongInt);
-Type TLongInt=Record
-WordL,WordH:Word;
-End;
+var
+  b: word;
 Begin
-SetBlock(TLongInt(Offset).WordH);
+{b:=TLongInt(Offset).WordH;
+if b<>bl then
+begin
+  SetBlock(b);
+  bl:=b;
+end; }
 MemL[$A000:TLongInt(Offset).WordL]:=Color;
 End;
 
