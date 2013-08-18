@@ -11,8 +11,8 @@ uses dos, vectors, useful, bitmap;
 
 const
   buffersize=64000;
-  maxverticescount=10000;
-  maxtrianglescount=5000;
+  maxverticescount=1000;
+  maxtrianglescount=1000;
   maxlightscount=10;
   precision=0.0001;
 
@@ -50,6 +50,7 @@ type
 procedure opengraph(ss, sw, sh: integer);
 procedure closegraph;
 procedure updatescreen;
+procedure converttobasis(const x, e1, e2, e3: tvector; var v: tvector);
 procedure addlight(const p: tvector);
 function computelighting(n: longint): single;
 function computelightingcolor(color: byte; l: single): byte;
@@ -286,6 +287,31 @@ begin
 end;
 
 
+procedure converttobasis(const x, e1, e2, e3: tvector; var v: tvector);
+var
+  e, s: array [1..3] of tvector;
+  udet: single;
+begin
+  copyvector(e[1], e1);
+  copyvector(e[2], e2);
+  copyvector(e[3], e3);
+  udet:=1/(e[1][1]*e[2][2]*e[3][3]+e[2][1]*e[3][2]*e[1][3]+e[3][1]*e[1][2]*e[2][3]-
+       e[3][1]*e[2][2]*e[1][3]-e[2][1]*e[1][2]*e[3][3]-e[1][1]*e[3][2]*e[2][3]);
+  s[1][1]:=e[2][2]*e[3][3]-e[3][2]*e[2][3];
+  s[2][1]:=e[3][2]*e[1][3]-e[1][2]*e[3][3];
+  s[3][1]:=e[1][2]*e[2][3]-e[2][2]*e[1][3];
+  s[1][2]:=e[3][1]*e[2][3]-e[2][1]*e[3][3];
+  s[2][2]:=e[1][1]*e[3][3]-e[3][1]*e[1][3];
+  s[3][2]:=e[2][1]*e[1][3]-e[1][1]*e[2][3];
+  s[1][3]:=e[2][1]*e[3][2]-e[3][1]*e[2][2];
+  s[2][3]:=e[3][1]*e[1][2]-e[1][1]*e[3][2];
+  s[3][3]:=e[1][1]*e[2][2]-e[2][1]*e[1][2];
+  v[1]:=(s[1][1]*x[1]+s[1][2]*x[2]+s[1][3]*x[3])*udet;
+  v[2]:=(s[2][1]*x[1]+s[2][2]*x[2]+s[2][3]*x[3])*udet;
+  v[3]:=(s[3][1]*x[1]+s[3][2]*x[2]+s[3][3]*x[3])*udet;
+end;
+
+
 procedure addlight(const p: tvector);
 begin
   inc(lightscount);
@@ -364,7 +390,7 @@ end;
 procedure drawtriangle(n: integer);
 
 var
-  v1, v2, v3, v: tvector;
+  v1, v2, v3, v, bx, by, bz: tvector;
   x1, y1, x2, y2, x3, y3, tcx1, tcy1, tcx2, tcy2, tcx3, tcy3, i, j, ti1, ti2, sj, t1, t2, w, dcx, dcy, dcx1, dcy1, dcx2, dcy2: integer;
   p: longint;
   ttcx1, ttcx2, ttcy1, ttcy2, cl, k: byte;
@@ -374,9 +400,47 @@ var
   normlight: array [1..maxlightscount] of tvector;
   drawstring: procedure;
 
+procedure findbasis(xy: byte);
+var
+  itc: array [1..3] of integer;
+begin
+  with triangle[n] do
+    if xy=3 then
+    begin
+      subtractvector(vertex[vertexid[2]], vertex[vertexid[1]], v1);
+      subtractvector(vertex[vertexid[3]], vertex[vertexid[1]], v2);
+      vectorproduct(v1, v2, bz);
+      normalizevector(bz);
+    end
+    else
+    begin
+      itc[1]:=1; itc[2]:=2; itc[3]:=3;
+      if tc[itc[1]][xy]>=tc[itc[2]][xy] then swapi(itc[1], itc[2]);
+      if tc[itc[2]][xy]>=tc[itc[3]][xy] then
+      begin
+        swapi(itc[2], itc[3]);
+        if tc[itc[1]][xy]>tc[itc[2]][xy] then swapi(itc[1], itc[2]);
+      end;
+      subtractvector(vertex[vertexid[itc[3]]], vertex[vertexid[itc[1]]], v1);
+      scalevector(v1, (tc[itc[2]][xy]-tc[itc[1]][xy])/(tc[itc[3]][xy]-tc[itc[1]][xy]));
+      subtractvector(vertex[vertexid[itc[1]]], vertex[vertexid[itc[2]]], v2);
+      if xy=1 then
+      begin
+        addvector(v1, v2, bx);
+        normalizevector(bx);
+      end
+      else
+      if xy=2 then
+      begin
+        addvector(v1, v2, by);
+        normalizevector(by);
+      end;
+    end;
+end;
+
 function computebump: single;
 begin
-  setvector(v, (bmm^[p-1]-bmm^[p])/128, 1, (bmm^[p-w]-bmm^[p])/128);
+  setvector(v, (bmm^[p-w]-bmm^[p])/4, 1, (bmm^[p-1]-bmm^[p])/4);
   normalizevector(v);
   t:=0;
   for k:=1 to lightscount do
@@ -415,7 +479,7 @@ begin
     swapi(t1, t2);
   end
   else tz:=tuz1;
-  if abs(tz2-tz1)<precision then
+  {if abs(tz2-tz1)<precision then
   begin
     tn:=(j-dy)*dy1;
     ttcx1:=dcx+trunc(dcx1*tn); ttcy1:=dcy+trunc(dcy1*tn);
@@ -436,8 +500,8 @@ begin
       tz:=tz+duz;
     end;
   end
-  else
-  begin
+  else     }
+  //begin
     tn:=(tz1-dz)*dz1;
     ttcx1:=dcx+trunc(dcx1*tn); ttcy1:=dcy+trunc(dcy1*tn);
     tn:=(tz2-z1)*dz2;
@@ -456,7 +520,7 @@ begin
       end;
       tz:=tz+duz;
     end;
-  end;
+  //end;
 end;
 
 begin
@@ -485,21 +549,11 @@ begin
         else
         begin
           bump:=true;
+          findbasis(1); findbasis(2); findbasis(3);
           for i:=1 to lightscount do
           begin
-            copyvector(normlight[i], light[i]);
-            v1[1]:=vertex[vertexid[2]][1]-vertex[vertexid[1]][1];
-            v1[2]:=vertex[vertexid[2]][2]-vertex[vertexid[1]][2];
-            v1[3]:=vertex[vertexid[2]][3]-vertex[vertexid[1]][3];
-            v2[1]:=vertex[vertexid[3]][1]-vertex[vertexid[1]][1];
-            v2[2]:=vertex[vertexid[3]][2]-vertex[vertexid[1]][2];
-            v2[3]:=vertex[vertexid[3]][3]-vertex[vertexid[1]][3];
-            vectorproduct(v1, v2, v);
-            setvector(v2, 0, 1, 0);
-            vectorproduct(v, v2, v1);
-            normalizevector(v1);
-            nullvector(v3);
-            rotatevector(v3, v1, vectorangle(v, v2), normlight[i]);
+            converttobasis(light[i], bx, bz, by, normlight[i]);
+            normalizevector(normlight[i]);
           end;
           bmm:=material^.bumpmap;
         end;
@@ -560,9 +614,7 @@ end;
 
 procedure worldtocamera(const x: tvector; var v: tvector);
 var
-  x1, x2: tvector;
-  e, s: array [1..3] of tvector;
-  udet: single;
+  x1, x2, x3: tvector;
 begin
   with camera do
   begin
@@ -570,26 +622,10 @@ begin
     normalizevector(x1);
     vectorproduct(direction, x1, x2);
     normalizevector(x2);
-    copyvector(e[1], x1);
-    copyvector(e[2], x2);
-    copyvector(e[3], direction);
+    subtractvector(x, camera.position, x3);
+    converttobasis(x3, x1, x2, direction, v);
+    v[1]:=-v[1];
   end;
-  udet:=1/(e[1][1]*e[2][2]*e[3][3]+e[2][1]*e[3][2]*e[1][3]+e[3][1]*e[1][2]*e[2][3]-
-       e[3][1]*e[2][2]*e[1][3]-e[2][1]*e[1][2]*e[3][3]-e[1][1]*e[3][2]*e[2][3]);
-  s[1][1]:=e[2][2]*e[3][3]-e[3][2]*e[2][3];
-  s[2][1]:=e[3][2]*e[1][3]-e[1][2]*e[3][3];
-  s[3][1]:=e[1][2]*e[2][3]-e[2][2]*e[1][3];
-  s[1][2]:=e[3][1]*e[2][3]-e[2][1]*e[3][3];
-  s[2][2]:=e[1][1]*e[3][3]-e[3][1]*e[1][3];
-  s[3][2]:=e[2][1]*e[1][3]-e[1][1]*e[2][3];
-  s[1][3]:=e[2][1]*e[3][2]-e[3][1]*e[2][2];
-  s[2][3]:=e[3][1]*e[1][2]-e[1][1]*e[3][2];
-  s[3][3]:=e[1][1]*e[2][2]-e[2][1]*e[1][2];
-  copyvector(x1, x);
-  subtractvector(x1, camera.position, x1);
-  v[1]:=-(s[1][1]*x1[1]+s[1][2]*x1[2]+s[1][3]*x1[3])*udet;
-  v[2]:=(s[2][1]*x1[1]+s[2][2]*x1[2]+s[2][3]*x1[3])*udet;
-  v[3]:=(s[3][1]*x1[1]+s[3][2]*x1[2]+s[3][3]*x1[3])*udet;
 end;
 
 

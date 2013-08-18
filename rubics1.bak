@@ -4,17 +4,18 @@ var
   c: array [-1..1, -1..1, -1..1] of tobject;
   t: array [-1..1, -1..1, -1..1] of ^tobject;
   m: array [1..9] of ^tobject;
-  tnormal, v, v0, tv, v1, v2: tvector;
+  tnormal, v, v0, tv, v1, v2, nv: tvector;
   a, b, tb: single;
-  mat, white, yellow, red, green, blue, orange, cursor: tmaterial;
+  mat, white, yellow, red, green, blue, orange, cursor, logo: tmaterial;
   key: char;
   n, button: byte;
   sign: shortint;
-  ret: array [1..1000] of byte;
-  steps, mx, my: integer;
-  x, y: word;
-  returning: boolean;
-  ti, tj, tk: shortint;
+  ret: array [1..1000] of array [1..2] of byte;
+  steps, mx, my, l: integer;
+  x, y, mc: word;
+  returning, turned: boolean;
+  ci, cj, ck, ci0, cj0, ck0: shortint;
+  str1, str2: string;
 
 
 function isontriangle(x, y, i1, i2, i3: integer): boolean;
@@ -31,6 +32,9 @@ begin
   if (abs(a1)+abs(a2)+abs(a3)=abs(a1+a2+a3))
      and ((scrvertex[i3][1]-scrvertex[i1][1])*(scrvertex[i2][2]-scrvertex[i1][2])
          -(scrvertex[i3][2]-scrvertex[i1][2])*(scrvertex[i2][1]-scrvertex[i1][1])<0)
+     and (((abs(vertex[i1][1])>1) or (abs(vertex[i1][2])>1) or (abs(vertex[i1][3])>1))
+       and ((abs(vertex[i2][1])>1) or (abs(vertex[i2][2])>1) or (abs(vertex[i2][3])>1))
+       and ((abs(vertex[i3][1])>1) or (abs(vertex[i3][2])>1) or (abs(vertex[i3][3])>1)))
      and (zvertex[i1]<=1/wbuffer^[scrvertex[i1][1]+320*scrvertex[i1][2]]+0.1)
      and (zvertex[i2]<=1/wbuffer^[scrvertex[i2][1]+320*scrvertex[i2][2]]+0.1)
      and (zvertex[i3]<=1/wbuffer^[scrvertex[i3][1]+320*scrvertex[i3][2]]+0.1)   then
@@ -46,7 +50,7 @@ begin
   if min>c then min3s:=c else min3s:=min;
 end;
 
-function getundermouse: integer;
+function getundermouse(var mi, mj, mk: shortint): integer;
 var
   i, j, k: shortint;
   zmin: single;
@@ -64,6 +68,7 @@ begin
             begin
               zmin:=min3s(zvertex[triangle[l].vertexid[1]], zvertex[triangle[l].vertexid[2]], zvertex[triangle[l].vertexid[3]]);
               tr:=l;
+              mi:=round(c[i,j,k].position[1]); mj:=round(c[i,j,k].position[2]); mk:=round(c[i,j,k].position[3]);
             end;
   getundermouse:=tr;
 end;
@@ -95,6 +100,7 @@ begin
   green.color:=46;
   blue.color:=32;
   orange.color:=41;
+  loadbitmap(logo.bitmap, logo.width, 'logo0.bmp');
 end;
 
 procedure setwhitematerials;
@@ -106,6 +112,26 @@ begin
   green.color:=31;
   blue.color:=31;
   orange.color:=31;
+  loadbitmap(logo.bitmap, logo.width, 'logo0.bmp');
+end;
+
+procedure setwhitebumpmaterials;
+begin
+  mat.color:=20;
+  loadbitmap(red.bitmap, red.width, 'white.bmp');
+  loadbitmap(green.bitmap, green.width, 'white.bmp');
+  loadbitmap(blue.bitmap, blue.width, 'white.bmp');
+  loadbitmap(white.bitmap, white.width, 'white.bmp');
+  loadbitmap(yellow.bitmap, yellow.width, 'white.bmp');
+  loadbitmap(orange.bitmap, orange.width, 'white.bmp');
+  loadbitmap(logo.bitmap, logo.width, 'logo.bmp');
+  loadbitmap(red.bumpmap, red.width, 'bump.bmp');
+  loadbitmap(green.bumpmap, green.width, 'bump.bmp');
+  loadbitmap(blue.bumpmap, blue.width, 'bump.bmp');
+  loadbitmap(white.bumpmap, white.width, 'bump.bmp');
+  loadbitmap(yellow.bumpmap, yellow.width, 'bump.bmp');
+  loadbitmap(orange.bumpmap, orange.width, 'bump.bmp');
+  loadbitmap(logo.bumpmap, logo.width, 'bump.bmp');
 end;
 
 procedure settexturedmaterials;
@@ -117,7 +143,14 @@ begin
   loadbitmap(white.bitmap, white.width, 'white.bmp');
   loadbitmap(yellow.bitmap, yellow.width, 'yellow.bmp');
   loadbitmap(orange.bitmap, orange.width, 'orange.bmp');
-  //loadbitmap(red.bumpmap, red.width, 'tile.bmp');
+  loadbitmap(logo.bitmap, logo.width, 'logo.bmp');
+  loadbitmap(red.bumpmap, red.width, 'bump.bmp');
+  loadbitmap(green.bumpmap, green.width, 'bump.bmp');
+  loadbitmap(blue.bumpmap, blue.width, 'bump.bmp');
+  loadbitmap(white.bumpmap, white.width, 'bump.bmp');
+  loadbitmap(yellow.bumpmap, yellow.width, 'bump.bmp');
+  loadbitmap(orange.bumpmap, orange.width, 'bump.bmp');
+  loadbitmap(logo.bumpmap, logo.width, 'bump.bmp');
 end;
 
 procedure createcube;
@@ -149,6 +182,11 @@ for i:=-1 to 1 do
             begin
               triangle[trianglescount-4].material:=@white;
               triangle[trianglescount-5].material:=@white;
+              if (i=0) and (j=0) then
+              begin
+                triangle[trianglescount-4].material:=@logo;
+                triangle[trianglescount-5].material:=@logo;
+              end;
             end;
             if i=-1 then
             begin
@@ -273,7 +311,8 @@ begin
     t:=random(5)+1;
     turn(t, pi/2);
     inc(steps);
-    ret[steps]:=t;
+    ret[steps][1]:=t;
+    ret[steps][2]:=1;
     update;
   end;
 end;
@@ -295,48 +334,117 @@ begin
     vectorproduct(direction, tv2, up);
     normalizevector(up);
     copyvector(light[1], direction);
+    copyvector(light[2], direction);
   end;
+end;
+
+procedure processcursor;
+var
+  v1, v2: tvector;
+begin
+  if (abs(ci)+abs(cj)+abs(ck)>1) and (abs(ci0)+abs(cj0)+abs(ck0)>1) then
+  begin
+    subtractvector(vertex[triangle[l].vertexid[2]], vertex[triangle[l].vertexid[1]], v1);
+    subtractvector(vertex[triangle[l].vertexid[3]], vertex[triangle[l].vertexid[1]], v2);
+    vectorproduct(v1, v2, nv);
+    if round(nv[1])<>0 then nv[1]:=ci
+    else if round(nv[2])<>0 then nv[2]:=cj
+    else if round(nv[3])<>0 then nv[3]:=ck;
+    setvector(v1, ci-ci0, cj-cj0, ck-ck0);
+    vectorproduct(nv, v1, v2); normalizevector(v2);
+    v2[1]:=round(v2[1]); v2[2]:=round(v2[2]); v2[3]:=round(v2[3]);
+    sign:=-1;
+    if v2[1]<>0 then
+    begin
+      if ci=1 then n:=1 else n:=2;
+      if v2[1]=ci then sign:=1;
+    end
+    else if v2[2]<>0 then
+    begin
+      if cj=1 then n:=3 else n:=4;
+      if v2[2]=cj then sign:=1;
+    end
+    else if v2[3]<>0 then
+    begin
+      if ck=1 then n:=5 else n:=6;
+      if v2[3]=ck then sign:=1;
+    end;
+    tb:=0; inc(steps); ret[steps][1]:=n; ret[steps][2]:=sign;
+  end;
+  turned:=true;
+end;
+
+procedure about;
+begin
+  textcolor(15);
+  writeln;
+  writeln('made by Oleksii Gryniuk');
+  writeln('compiler: TMT Pascal Lite');
+  writeln('release date: 11.06.2010');
+  writeln;
+  textcolor(7);
+end;
+
+procedure help;
+begin
+  textcolor(15);
+  writeln;
+  writeln('controls: right mouse button or [w] [s] [a] [d] - turn camera;');
+  writeln('          left mouse button or [1]-[6] - turn faces;');
+  writeln('          [m] - mix; [z] - step backward;');
+  writeln('          [r] - step backward down to the first step;');
+  writeln('          [esc] - exit;');
+  writeln('note: try to use an emulator, for example "DOSBox"');
+  writeln;
+  textcolor(7);
 end;
 
 begin
   clrscr;
-  writeln('Select type of cube (1-3):');
-  readln(mx);
-  writeln('Select type of texturing (1-3):');
-  readln(my);
+  textcolor(15);
+  writeln('Rubik'+#39+'s cube v0.9');
+  textcolor(7);
+  writeln;
+  repeat
+    writeln('Select type of cube (1-3):');
+    readln(str1);
+    if str1='about' then about
+    else if str1='help' then help;
+  until (str1='1') or (str1='2') or (str1='3');
+  repeat
+    writeln('Select type of texturing (1-4):');
+    readln(str2);
+    if str2='about' then about
+    else if str2='help' then help;
+  until (str2='1') or (str2='2') or (str2='3') or (str2='4');
   opengraph(200, 320, 200);
   //backgroundcolor:=31;
   reset_mouse(returning, button);
   mouse_gotoXY(320, 100);
   loadbitmap(cursor.bitmap, cursor.width, 'mouse.bmp');
-  //show_cursor;
-  setvector(camera.position, 0, -8, 0);
-  setvector(v0, 1, 0, 0);
-  addlight(v0);
-  //setvector(v0, 2, 1, 0);
-  //addlight(v0);
+  setvector(camera.position, 3, -5, 4);
+  turncamera(0, 0);
   nullvector(v0);
+  addlight(v0);
+  if str2='1' then addlight(v0);
   copyvector(light[1], camera.direction);
-  case my of
-    1: setcoloredmaterials;
-    2: settexturedmaterials;
-    3: setwhitematerials;
-    end;
-  case mx of
-    1: createcube;
-    2: createasymmetriccube;
-    3: createstrangecube;
-    end;
+  copyvector(light[2], camera.direction);
+  if str2='1' then setcoloredmaterials
+  else if str2='2' then settexturedmaterials
+  else if str2='3' then setwhitematerials
+  else if str2='4' then setwhitebumpmaterials;
+  if str1='1' then createcube
+  else if str1='2' then createasymmetriccube
+  else if str1='3' then createstrangecube;
   steps:=0;
   update;
-  //mix(222);
   b:=pi*0.1;
   sign:=1;
   tb:=-1;
   returning:=false;
+  ci0:=0; cj0:=1; ck0:=0;
   repeat
     rendertobuffer;
-    drawlinedtriangle(getundermouse, 15);
     drawcursor(x, y);
     updatescreen;
     if keypressed then
@@ -349,14 +457,15 @@ begin
         'd': begin a:=0.5; copyvector(v, up); end;
         'w': begin a:=-0.5; vectorproduct(direction, up, v); normalizevector(v); end;
         's': begin a:=0.5; vectorproduct(direction, up, v); normalizevector(v); end;
-        '1': if tb=-1 then begin n:=1; tb:=0; sign:=1; inc(steps); ret[steps]:=n; end;
-        '2': if tb=-1 then begin n:=2; tb:=0; sign:=1; inc(steps); ret[steps]:=n; end;
-        '3': if tb=-1 then begin n:=3; tb:=0; sign:=1; inc(steps); ret[steps]:=n; end;
-        '4': if tb=-1 then begin n:=4; tb:=0; sign:=1; inc(steps); ret[steps]:=n; end;
-        '5': if tb=-1 then begin n:=5; tb:=0; sign:=1; inc(steps); ret[steps]:=n; end;
-        '6': if tb=-1 then begin n:=6; tb:=0; sign:=1; inc(steps); ret[steps]:=n; end;
-        'r': if (tb=-1) and (steps>0) then begin n:=ret[steps]; dec(steps); returning:=true; tb:=0; sign:=-1; end;
+        '1': if tb=-1 then begin n:=1; tb:=0; sign:=1; inc(steps); ret[steps][1]:=n; ret[steps][2]:=1; end;
+        '2': if tb=-1 then begin n:=2; tb:=0; sign:=1; inc(steps); ret[steps][1]:=n; ret[steps][2]:=1; end;
+        '3': if tb=-1 then begin n:=3; tb:=0; sign:=1; inc(steps); ret[steps][1]:=n; ret[steps][2]:=1; end;
+        '4': if tb=-1 then begin n:=4; tb:=0; sign:=1; inc(steps); ret[steps][1]:=n; ret[steps][2]:=1; end;
+        '5': if tb=-1 then begin n:=5; tb:=0; sign:=1; inc(steps); ret[steps][1]:=n; ret[steps][2]:=1; end;
+        '6': if tb=-1 then begin n:=6; tb:=0; sign:=1; inc(steps); ret[steps][1]:=n; ret[steps][2]:=1; end;
+        'r': if (tb=-1) and (steps>0) then begin n:=ret[steps][1]; sign:=-ret[steps][2]; dec(steps); returning:=true; tb:=0; end;
         'm': if tb=-1 then mix(random(100));
+        'z': if (tb=-1) and (steps>0) then begin n:=ret[steps][1]; sign:=-ret[steps][2]; dec(steps); tb:=0; end;
       end;
     end;
     if abs(a)>0.01 then
@@ -383,7 +492,8 @@ begin
         if returning then
           if steps>0 then
           begin
-            n:=ret[steps];
+            n:=ret[steps][1];
+            sign:=-ret[steps][2];
             dec(steps);
             tb:=0;
           end
@@ -391,8 +501,19 @@ begin
             returning:=false;
       end;
     end;
+    get_mouse_button_press(button, mc, x, y);
+    if (button=1) and (mc>0) then turned:=false;
     get_mouse_status(button, x, y);
     x:=x shr 1;
+    if x>320-cursor.width then x:=320-cursor.width;
+    if y>200-cursor.width then y:=200-cursor.width;
+    if tb=-1 then
+    begin
+      l:=getundermouse(ci, cj, ck);
+      //drawlinedtriangle(l, 15);
+      if (button=1) and not(turned) and ((ci<>ci0) or (cj<>cj0) or (ck<>ck0)) then processcursor;
+      ci0:=ci; cj0:=cj; ck0:=ck;
+    end;
     if button=2 then
       turncamera(mx-x, y-my);
     mx:=x; my:=y;

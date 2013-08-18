@@ -7,15 +7,18 @@ var
   i, j: longint;
 begin
   opengraph(200, 320, 200);
-  setvector(v, -1, 1, -0.5);
+  setvector(v, -1, 1, -1);
+  normalizevector(v);
   addlight(v);
-  setvector(v, 1, -1, 0.5);
-  addlight(v);
+  //setvector(v, 1, -1, 0.5);
+  //addlight(v);
   make_cube(c1, 8);
   make_cube(c2, 5);
   mat1.color:=31; mat.color:=31;
-  loadbitmap(mat1.bitmap, mat1.width, 'nt1.bmp');
-  loadbitmap(mat.bitmap, mat.width, 'nt1.bmp');
+  loadbitmap(mat1.bitmap, mat1.width, '31.bmp');
+  loadbitmap(mat1.bumpmap, mat1.width, 'tb0.bmp');
+  loadbitmap(mat.bitmap, mat.width, '31.bmp');
+  loadbitmap(mat.bumpmap, mat.width, 'tb0.bmp');
   c1.setmaterial(mat1);
   c2.setmaterial(mat);
   setvector(m, 0, 0, 0);
@@ -52,7 +55,7 @@ begin
     v1[3]:=-1;
     normalizevector(v1);
     c1.setdirection(v1);
-    //c1.rotate(c1.position, v, -0.01);
+    c1.rotate(c1.position, v, -0.01);
     c2.rotate(c2.position, v, 0.07);
     setvector(v, sin(a), 1, cos(a));
     m[1]:=cos(a)/18;
